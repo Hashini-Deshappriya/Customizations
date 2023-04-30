@@ -1,0 +1,68 @@
+/*
+    Copyright (c) 2018, WSO2 Inc. (http://wso2.com) All Rights Reserved.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+@App:name("APIM_ALERT_EMAIL_NOTIFICATION_SUSPENDED_APIS")
+@App:description('Send email to all the subscribers of a particular alert')
+
+
+@source(type = "inMemory", topic = "FaultStream")
+define stream FaultStream(
+    meta_clientType string,
+    applicationConsumerKey string,
+    apiName string,
+    apiVersion string,
+    apiContext string,
+    apiResourcePath string,
+    apiMethod string,
+    apiCreator string,
+    username string,
+    userTenantDomain string,
+    apiCreatorTenantDomain string,
+    hostname string,
+    applicationId string,
+    applicationName string,
+    protocol string,
+    errorCode string,
+    errorMessage string,
+    requestTimestamp long
+);
+
+
+
+@sink(type='email', @map(type='text') , username='filesharefile123@gmail.com', address='filesharefile123@gmail.com', password='bodima123', subject='Test Siddhi-io-email',port='465', to='{{subsAddress}}', ssl.enable='true', auth='true', host='smtp.gmail.com')
+define stream EmailNotificationStream (
+     errorMessage string,
+     requestTimestamp long,
+     subsAddress string);
+
+
+@Store(type="rdbms",
+       jdbc.url="jdbc:mysql://localhost:3306/hashini?useSSL=false&allowPublicKeyRetrieval=true",
+       username="hashini",
+       password="Hashi1995@wso2" ,
+       jdbc.driver.name="com.mysql.cj.jdbc.Driver")
+define table SuspendedApiSubscriber(subsAddress string);
+
+
+
+@info(name = 'Suspended API customise Email body')
+from FaultStream#window.length(1) as B join SuspendedApiSubscriber as E select B.errorMessage,B.requestTimestamp, E.subsAddress
+insert into SuspendEmailAlertStream;
+
+@info(name = 'Insert to Suspend Email Sink')
+from SuspendEmailAlertStream
+select errorMessage, requestTimestamp, subsAddress
+insert into EmailNotificationStream;
